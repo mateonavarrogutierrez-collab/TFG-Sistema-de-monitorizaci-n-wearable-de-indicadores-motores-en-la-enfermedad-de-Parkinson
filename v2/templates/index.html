@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+{% if fecha and fecha == hoy %}<meta http-equiv="refresh" content="60">{% endif %}
+<title>Monitor Parkinson · TFG</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600&family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #f7f8fa;
+    --white:    #ffffff;
+    --border:   #e4e7ed;
+    --text:     #1a1d23;
+    --muted:    #6b7280;
+    --light:    #9ca3af;
+    --green:    #059669; --green-bg: #ecfdf5; --green-b: #a7f3d0;
+    --red:      #dc2626; --red-bg:   #fef2f2; --red-b:   #fecaca;
+    --amber:    #d97706; --amber-bg: #fffbeb; --amber-b: #fde68a;
+    --blue:     #2563eb; --blue-bg:  #eff6ff; --blue-b:  #bfdbfe;
+    --purple:   #7c3aed; --purple-bg:#f5f3ff; --purple-b:#ddd6fe;
+    --accent:   #1d4ed8;
+    --radius:   10px;
+    --shadow:   0 1px 3px rgba(0,0,0,0.08);
+    --shadow-md:0 4px 12px rgba(0,0,0,0.08);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:'Outfit',sans-serif; font-size:14px; min-height:100vh; }
+
+  /* TOPBAR */
+  .topbar {
+    background:var(--white); border-bottom:1px solid var(--border);
+    padding:0 32px; display:flex; align-items:center; justify-content:space-between;
+    height:60px; position:sticky; top:0; z-index:100; box-shadow:var(--shadow);
+  }
+  .topbar-left { display:flex; align-items:center; gap:14px; }
+  .logo-icon { width:36px; height:36px; background:var(--accent); border-radius:8px; display:flex; align-items:center; justify-content:center; color:white; font-size:18px; }
+  .logo-text { font-family:'Fraunces',serif; font-size:18px; font-weight:600; letter-spacing:-0.3px; }
+  .logo-sub  { font-size:11px; color:var(--muted); font-family:'DM Mono',monospace; }
+  .live-badge { display:flex; align-items:center; gap:6px; background:var(--green-bg); border:1px solid var(--green-b); border-radius:999px; padding:5px 12px; font-size:11px; font-weight:500; color:var(--green); font-family:'DM Mono',monospace; }
+  .live-dot { width:6px; height:6px; border-radius:50%; background:var(--green); animation:pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  .topbar-date { font-size:12px; color:var(--muted); font-family:'DM Mono',monospace; }
+
+  /* LAYOUT */
+  .layout { display:flex; min-height:calc(100vh - 60px); }
+
+  /* SIDEBAR */
+  .sidebar { width:220px; background:var(--white); border-right:1px solid var(--border); padding:20px 12px; flex-shrink:0; position:sticky; top:60px; height:calc(100vh - 60px); overflow-y:auto; }
+  .sidebar-label { font-size:10px; font-weight:600; letter-spacing:1.5px; text-transform:uppercase; color:var(--light); padding:0 10px; margin-bottom:6px; margin-top:18px; }
+  .sidebar-label:first-child { margin-top:0; }
+  .nav-item { display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:8px; cursor:pointer; transition:all 0.15s; font-size:13px; color:var(--muted); border:none; background:none; width:100%; text-align:left; }
+  .nav-item:hover { background:var(--bg); color:var(--text); }
+  .nav-item.active { background:var(--blue-bg); color:var(--blue); font-weight:500; }
+  .nav-item .icon { font-size:15px; width:20px; text-align:center; }
+  .nav-badge { margin-left:auto; font-size:10px; font-family:'DM Mono',monospace; background:var(--red-bg); color:var(--red); border-radius:999px; padding:2px 7px; }
+  .sidebar-stat { padding:10px; background:var(--bg); border-radius:8px; font-size:11px; display:flex; flex-direction:column; gap:7px; }
+  .sidebar-stat-row { display:flex; justify-content:space-between; }
+  .sidebar-stat-val { font-family:'DM Mono',monospace; font-weight:500; }
+
+  /* CONTENIDO */
+  .content { flex:1; padding:28px 32px; }
+
+  /* TABS */
+  .tab { display:none; }
+  .tab.active { display:block; animation:fadeUp 0.2s ease; }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+
+  /* PÁGINA TÍTULO */
+  .page-title { font-family:'Fraunces',serif; font-size:24px; font-weight:600; letter-spacing:-0.5px; margin-bottom:4px; }
+  .page-sub   { font-size:13px; color:var(--muted); margin-bottom:24px; }
+
+  /* STATS */
+  .stats { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:22px; }
+  .stats-5 { grid-template-columns:repeat(5,1fr); }
+  .stat-card { background:var(--white); border:1px solid var(--border); border-radius:var(--radius); padding:18px 20px; box-shadow:var(--shadow); transition:box-shadow 0.2s; }
+  .stat-card:hover { box-shadow:var(--shadow-md); }
+  .stat-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+  .stat-icon { width:34px; height:34px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:17px; }
+  .stat-icon.green  { background:var(--green-bg); }
+  .stat-icon.red    { background:var(--red-bg); }
+  .stat-icon.blue   { background:var(--blue-bg); }
+  .stat-icon.amber  { background:var(--amber-bg); }
+  .stat-icon.purple { background:var(--purple-bg); }
+  .stat-label { font-size:10px; font-weight:500; color:var(--muted); text-transform:uppercase; letter-spacing:0.8px; }
+  .stat-value { font-family:'Fraunces',serif; font-size:28px; font-weight:600; line-height:1; margin-bottom:4px; }
+  .stat-desc  { font-size:11px; color:var(--light); }
+
+  /* CARDS */
+  .card { background:var(--white); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); margin-bottom:18px; overflow:hidden; }
+  .card-header { padding:14px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+  .card-title { font-size:14px; font-weight:600; }
+  .card-sub   { font-size:12px; color:var(--muted); margin-top:2px; }
+  .card-body  { padding:18px 20px; }
+
+  /* GRID 2 COL */
+  .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:18px; }
+  .grid-3 { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:18px; }
+
+  /* METRIC BOX */
+  .metric-box { background:var(--white); border:1px solid var(--border); border-radius:var(--radius); padding:18px 20px; box-shadow:var(--shadow); }
+  .metric-box-label { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.8px; font-weight:500; margin-bottom:8px; }
+  .metric-box-value { font-family:'Fraunces',serif; font-size:34px; font-weight:600; line-height:1; }
+  .metric-box-unit  { font-size:13px; color:var(--muted); margin-left:4px; }
+  .metric-box-desc  { font-size:11px; color:var(--light); margin-top:6px; }
+
+  /* ALERTAS */
+  .alert { display:flex; align-items:flex-start; gap:12px; padding:14px 16px; border-radius:var(--radius); margin-bottom:18px; font-size:13px; }
+  .alert.warn   { background:var(--amber-bg); border:1px solid var(--amber-b); color:var(--amber); }
+  .alert.danger { background:var(--red-bg);   border:1px solid var(--red-b);   color:var(--red); }
+  .alert.info   { background:var(--blue-bg);  border:1px solid var(--blue-b);  color:var(--blue); }
+  .alert.ok     { background:var(--green-bg); border:1px solid var(--green-b); color:var(--green); }
+  .alert-icon   { font-size:18px; flex-shrink:0; }
+  .alert-text strong { display:block; margin-bottom:2px; }
+
+  /* BADGES */
+  .badge { display:inline-flex; align-items:center; padding:3px 10px; border-radius:999px; font-size:11px; font-weight:500; font-family:'DM Mono',monospace; }
+  .badge.alto     { background:var(--red-bg);    color:var(--red);    border:1px solid var(--red-b); }
+  .badge.medio    { background:var(--amber-bg);  color:var(--amber);  border:1px solid var(--amber-b); }
+  .badge.bajo     { background:var(--green-bg);  color:var(--green);  border:1px solid var(--green-b); }
+  .badge.buena    { background:var(--green-bg);  color:var(--green);  border:1px solid var(--green-b); }
+  .badge.regular  { background:var(--amber-bg);  color:var(--amber);  border:1px solid var(--amber-b); }
+  .badge.mala     { background:var(--red-bg);    color:var(--red);    border:1px solid var(--red-b); }
+  .badge.normal   { background:var(--green-bg);  color:var(--green);  border:1px solid var(--green-b); }
+  .badge.reducido { background:var(--amber-bg);  color:var(--amber);  border:1px solid var(--amber-b); }
+  .badge.ausente  { background:var(--red-bg);    color:var(--red);    border:1px solid var(--red-b); }
+  .badge.nd       { background:var(--bg);        color:var(--light);  border:1px solid var(--border); }
+
+  /* BARRA PROGRESO */
+  .prog-wrap { display:flex; align-items:center; gap:8px; }
+  .prog-bg   { flex:1; height:4px; background:var(--border); border-radius:4px; overflow:hidden; min-width:50px; }
+  .prog-fill { height:100%; border-radius:4px; }
+  .prog-txt  { font-family:'DM Mono',monospace; font-size:10px; color:var(--muted); min-width:32px; text-align:right; }
+
+  /* GRÁFICA BARRAS CSS */
+  .chart-bars { display:flex; align-items:flex-end; gap:2px; height:80px; }
+  .bar-wrap   { flex:1; display:flex; flex-direction:column; align-items:center; }
+  .bar        { width:100%; border-radius:2px 2px 0 0; min-height:2px; }
+  .bar.temblor { background:var(--red); }
+  .bar.normal  { background:var(--blue-b); }
+  .chart-legend { display:flex; gap:16px; margin-top:10px; font-size:11px; color:var(--muted); }
+  .chart-legend span { display:flex; align-items:center; gap:5px; }
+  .legend-dot { width:10px; height:10px; border-radius:2px; display:inline-block; }
+
+  /* TABLA */
+  .tabla-wrap { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; }
+  thead th { padding:10px 14px; text-align:left; font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:1px; color:var(--muted); background:var(--bg); border-bottom:1px solid var(--border); white-space:nowrap; }
+  tbody tr { border-bottom:1px solid var(--border); transition:background 0.1s; }
+  tbody tr:last-child { border-bottom:none; }
+  tbody tr:hover { background:var(--bg); }
+  td { padding:11px 14px; font-size:12px; vertical-align:middle; }
+  td.mono { font-family:'DM Mono',monospace; font-size:11px; }
+  td.num  { font-family:'DM Mono',monospace; font-size:11px; text-align:right; }
+
+  /* SUEÑO */
+  .sueno-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:18px; }
+  .sueno-card { background:var(--white); border:1px solid var(--border); border-radius:var(--radius); padding:18px; box-shadow:var(--shadow); }
+  .sueno-fecha  { font-size:11px; color:var(--muted); margin-bottom:12px; font-family:'DM Mono',monospace; }
+  .sueno-score  { font-family:'Fraunces',serif; font-size:44px; font-weight:600; line-height:1; }
+  .sueno-score.buena   { color:var(--green); }
+  .sueno-score.regular { color:var(--amber); }
+  .sueno-score.mala    { color:var(--red); }
+  .sueno-rows   { display:flex; flex-direction:column; gap:8px; margin-top:12px; }
+  .sueno-row    { display:flex; justify-content:space-between; align-items:center; font-size:12px; }
+  .sueno-key    { color:var(--muted); }
+  .sueno-val    { font-family:'DM Mono',monospace; font-weight:500; }
+  .mini-bar-wrap{ display:flex; align-items:center; gap:6px; margin-top:3px; }
+  .mini-bar-bg  { flex:1; height:3px; background:var(--border); border-radius:3px; overflow:hidden; }
+  .mini-bar-fill{ height:100%; border-radius:3px; }
+
+  /* CAÍDAS */
+  .caida-item { display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid var(--border); }
+  .caida-item:last-child { border-bottom:none; }
+  .caida-icon { width:32px; height:32px; background:var(--red-bg); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; }
+  .caida-hora { font-family:'DM Mono',monospace; font-size:13px; font-weight:500; }
+  .caida-mag  { font-size:11px; color:var(--muted); margin-top:2px; }
+
+  /* EMPTY */
+  .empty { text-align:center; padding:48px 20px; color:var(--muted); }
+  .empty-icon { font-size:32px; margin-bottom:10px; }
+  .empty-text { font-size:13px; }
+
+  /* INFO BOX */
+  .info-box { background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); padding:16px 20px; margin-bottom:18px; font-size:12px; color:var(--muted); line-height:1.7; }
+  .info-box strong { color:var(--text); }
+
+  /* FOOTER */
+  .footer-bar { margin-top:36px; padding:14px 0; border-top:1px solid var(--border); font-size:11px; color:var(--light); font-family:'DM Mono',monospace; display:flex; justify-content:space-between; }
+</style>
+</head>
+<body>
+{% set m = metricas %}
+{% set t = m.temblor if m else {} %}
+{% set mar = m.marcha if m else {} %}
+{% set cai = m.caidas if m else {"n_caidas": 0, "eventos": []} %}
+{% set pul = m.pulso if m else {} %}
+{% set sue = m.sueno if m else {} %}
+{% set dat = m.datos if m else {} %}
+
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="logo-icon">⚕</div>
+    <div>
+      <div class="logo-text">Monitor Parkinson</div>
+      <div class="logo-sub">TFG · Ingeniería Biomédica</div>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:16px;">
+    <form method="get" style="display:flex;align-items:center;gap:8px;">
+      <label for="sel-fecha" style="font-size:12px;color:var(--muted)">Día</label>
+      <select id="sel-fecha" name="fecha" onchange="this.form.submit()"
+        style="font-family:'DM Mono',monospace;font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:8px;background:var(--white)">
+        {% for f in fechas|reverse %}<option value="{{ f }}" {{ 'selected' if f == fecha }}>{{ f }}</option>{% endfor %}
+      </select>
+    </form>
+    <div class="topbar-date">{{ fecha_actual }}</div>
+  </div>
+</div>
+
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <nav class="sidebar">
+    <div class="sidebar-label">Navegación</div>
+    <button class="nav-item active" onclick="showTab('resumen',this)"><span class="icon">📊</span> Resumen</button>
+    <button class="nav-item" onclick="showTab('temblor',this)"><span class="icon">〰️</span> Temblor
+      {% if t.n_episodios %}<span class="nav-badge">{{ t.n_episodios }}</span>{% endif %}</button>
+    <button class="nav-item" onclick="showTab('pulso',this)"><span class="icon">❤️</span> Pulso</button>
+    <button class="nav-item" onclick="showTab('marcha',this)"><span class="icon">🚶</span> Marcha y braceo</button>
+    <button class="nav-item" onclick="showTab('caidas',this)"><span class="icon">⚠️</span> Caídas
+      {% if cai.n_caidas > 0 %}<span class="nav-badge">{{ cai.n_caidas }}</span>{% endif %}</button>
+    <button class="nav-item" onclick="showTab('sueno',this)"><span class="icon">🌙</span> Sueño</button>
+    <button class="nav-item" onclick="showTab('historial',this)"><span class="icon">📋</span> Historial</button>
+    <button class="nav-item" onclick="showTab('tendencias',this)"><span class="icon">📈</span> Tendencias</button>
+
+    <div class="sidebar-label">Día mostrado</div>
+    <div class="sidebar-stat">
+      <div class="sidebar-stat-row"><span style="color:var(--muted)">Horas con datos</span><span class="sidebar-stat-val">{{ dat.horas_registradas }} h</span></div>
+      <div class="sidebar-stat-row"><span style="color:var(--muted)">Pulso medio</span><span class="sidebar-stat-val" style="color:var(--red)">{{ pul.media_hr if pul.media_hr is not none else '—' }} bpm</span></div>
+      <div class="sidebar-stat-row"><span style="color:var(--muted)">Pasos</span><span class="sidebar-stat-val" style="color:var(--green)">{{ m.pasos if m else 0 }}</span></div>
+      <div class="sidebar-stat-row"><span style="color:var(--muted)">Caídas</span><span class="sidebar-stat-val" style="color:{{ 'var(--red)' if cai.n_caidas > 0 else 'var(--green)' }}">{{ cai.n_caidas }}</span></div>
+    </div>
+  </nav>
+
+  <main class="content">
+  {% if not fecha %}
+    <div class="empty"><div class="empty-icon">📭</div><div class="empty-text">Todavía no hay datos.</div></div>
+  {% else %}
+
+    <!-- ══════════ RESUMEN ══════════ -->
+    <div id="tab-resumen" class="tab active">
+      <div class="page-title">Resumen del {{ fecha }}</div>
+      <div class="page-sub">{{ dat.horas_registradas }} h de registro · fs media {{ dat.fs_media }} Hz
+        {% if dat.n_duplicados %} · {{ dat.n_duplicados }} registros duplicados descartados{% endif %}</div>
+
+      {% if cai.n_caidas > 0 %}
+      <div class="alert danger"><span class="alert-icon">🚨</span><div class="alert-text">
+        <strong>{{ cai.n_caidas }} posible(s) caída(s)</strong>Detalle y hora en la pestaña Caídas.</div></div>
+      {% endif %}
+      {% if t.n_episodios %}
+      <div class="alert warn"><span class="alert-icon">⚠️</span><div class="alert-text">
+        <strong>{{ t.n_episodios }} episodio(s) compatibles con temblor ({{ t.minutos_temblor }} min)</strong>
+        Revisar en la pestaña Temblor: actividades rítmicas voluntarias (p. ej. cepillarse los dientes) producen el mismo patrón.</div></div>
+      {% elif t.disponible %}
+      <div class="alert ok"><span class="alert-icon">✅</span><div class="alert-text"><strong>Sin episodios compatibles con temblor</strong></div></div>
+      {% endif %}
+
+      <div class="stats stats-5">
+        <div class="stat-card"><div class="stat-top"><span class="stat-label">Temblor</span><div class="stat-icon red">〰️</div></div>
+          <div class="stat-value">{{ t.minutos_temblor if t.disponible else '—' }}<span style="font-size:14px;color:var(--muted)"> min</span></div>
+          <div class="stat-desc">{{ t.pct_temblor if t.disponible else '—' }}% de las ventanas</div></div>
+        <div class="stat-card"><div class="stat-top"><span class="stat-label">Pulso</span><div class="stat-icon red">❤️</div></div>
+          <div class="stat-value">{{ pul.media_hr if pul.media_hr is not none else '—' }}<span style="font-size:14px;color:var(--muted)"> bpm</span></div>
+          <div class="stat-desc">dispersión ±{{ pul.dispersion_fc if pul.dispersion_fc is not none else '—' }} bpm</div></div>
+        <div class="stat-card"><div class="stat-top"><span class="stat-label">Marcha</span><div class="stat-icon green">🚶</div></div>
+          <div class="stat-value">{{ mar.minutos_marcha if mar.disponible else '—' }}<span style="font-size:14px;color:var(--muted)"> min</span></div>
+          <div class="stat-desc">{{ m.pasos }} pasos · reloj: {{ m.pasos_firmware }}</div></div>
+        <div class="stat-card"><div class="stat-top"><span class="stat-label">Braceo</span><div class="stat-icon blue">💪</div></div>
+          <div class="stat-value">{{ mar.braceo_rms_g if mar.disponible else '—' }}<span style="font-size:14px;color:var(--muted)"> g</span></div>
+          <div class="stat-desc">{% if ref.braceo_rms_g and mar.disponible %}{{ (mar.braceo_rms_g / ref.braceo_rms_g * 100)|round|int }}% de su referencia{% else %}sin referencia previa{% endif %}</div></div>
+        <div class="stat-card"><div class="stat-top"><span class="stat-label">Sueño</span><div class="stat-icon purple">🌙</div></div>
+          <div class="stat-value">{{ sue.puntuacion if sue.disponible else '—' }}<span style="font-size:14px;color:var(--muted)">/100</span></div>
+          <div class="stat-desc">{% if sue.disponible %}{{ sue.horas_sueno }} h · {{ sue.inicio[:5] }}–{{ sue.fin[:5] }}{% else %}{{ sue.motivo }}{% endif %}</div></div>
+      </div>
+
+      <div class="info-box">
+        <strong>Cómo leer estos datos.</strong> Las puntuaciones y umbrales son heurísticos y no están validados clínicamente.
+        Los valores de marcha y braceo se interpretan frente a la referencia del propio paciente (mediana de días anteriores),
+        no frente a umbrales absolutos. La "dispersión" del pulso es la desviación típica de los bpm, no la HRV.
+      </div>
+    </div>
+
+    <!-- ══════════ TEMBLOR ══════════ -->
+    <div id="tab-temblor" class="tab">
+      <div class="page-title">Temblor</div>
+      <div class="page-sub">FFT por ventanas de 5 s · banda {{ '4–11' }} Hz · temblor si ≥ {{ (t.umbral_ratio*100)|int if t.disponible else 50 }}% de la potencia dinámica y ≥ {{ t.umbral_rms if t.disponible else 0.02 }} g RMS en banda</div>
+      {% if t.disponible %}
+      <div class="grid-3">
+        <div class="metric-box"><div class="metric-box-label">Episodios</div><div class="metric-box-value">{{ t.n_episodios }}</div><div class="metric-box-desc">≥ 10 s seguidos</div></div>
+        <div class="metric-box"><div class="metric-box-label">Tiempo con temblor</div><div class="metric-box-value">{{ t.minutos_temblor }}<span class="metric-box-unit">min</span></div><div class="metric-box-desc">{{ t.n_temblor }} de {{ t.n_ventanas }} ventanas ({{ t.pct_temblor }}%)</div></div>
+        <div class="metric-box"><div class="metric-box-label">Límite de detección</div><div class="metric-box-value">{{ ((dat.fs_media or 23)/2)|round(1) }}<span class="metric-box-unit">Hz</span></div><div class="metric-box-desc">Nyquist con la fs real del día</div></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Episodios detectados</div></div>
+        {% if t.episodios %}
+        <div class="tabla-wrap"><table>
+          <thead><tr><th>Inicio</th><th>Fin</th><th>Duración</th><th>Frecuencia</th><th>% potencia en banda</th><th>Amplitud media</th><th>Amplitud máx.</th></tr></thead>
+          <tbody>{% for e in t.episodios %}<tr>
+            <td class="mono">{{ e.inicio }}</td><td class="mono">{{ e.fin }}</td><td class="num">{{ e.duracion_s }} s</td>
+            <td class="num">{{ e.frecuencia_hz }} Hz</td><td class="num">{{ e.ratio_medio }}%</td>
+            <td class="num">{{ e.rms_medio_g }} g</td><td class="num">{{ e.rms_max_g }} g</td></tr>{% endfor %}</tbody>
+        </table></div>
+        {% else %}<div class="empty"><div class="empty-text">Sin episodios este día</div></div>{% endif %}
+      </div>
+      <div class="card">
+        <div class="card-header"><div><div class="card-title">% de potencia en banda de temblor — máximo por minuto</div>
+          <div class="card-sub">Rueda del ratón para hacer zoom · rojo = minuto con alguna ventana de temblor</div></div>
+          <button onclick="resetZoom('temblor')" class="btn-sec">Ver día completo</button></div>
+        <div class="card-body"><canvas id="chart-temblor-detalle" height="120"></canvas></div>
+      </div>
+      {% else %}<div class="empty"><div class="empty-text">{{ t.motivo }}</div></div>{% endif %}
+    </div>
+
+    <!-- ══════════ PULSO ══════════ -->
+    <div id="tab-pulso" class="tab">
+      <div class="page-title">Frecuencia cardíaca</div>
+      <div class="page-sub">Sensor PPG del reloj · una lectura por paquete</div>
+      {% if pul.disponible %}
+      <div class="grid-3">
+        <div class="metric-box"><div class="metric-box-label">Media del día</div><div class="metric-box-value">{{ pul.media_hr }}<span class="metric-box-unit">bpm</span></div></div>
+        <div class="metric-box"><div class="metric-box-label">Rango</div><div class="metric-box-value">{{ pul.min_hr }}–{{ pul.max_hr }}<span class="metric-box-unit">bpm</span></div><div class="metric-box-desc">percentil 5: {{ pul.p5_hr }} bpm</div></div>
+        <div class="metric-box"><div class="metric-box-label">Dispersión</div><div class="metric-box-value">±{{ pul.dispersion_fc }}<span class="metric-box-unit">bpm</span></div><div class="metric-box-desc">Desv. típica de los bpm (no es HRV: no hay intervalos RR)</div></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div><div class="card-title">Pulso minuto a minuto</div><div class="card-sub">Huecos = sin lectura</div></div>
+          <button onclick="resetZoom('pulso')" class="btn-sec">Ver día completo</button></div>
+        <div class="card-body"><canvas id="chart-pulso-horas" height="120"></canvas></div>
+      </div>
+      <div class="card"><div class="card-header"><div class="card-title">Por horas</div></div>
+        <div class="tabla-wrap"><table><thead><tr><th>Hora</th><th>Media</th><th>Mín</th><th>Máx</th><th>Lecturas</th></tr></thead><tbody>
+        {% for f in m.pulso_por_hora %}{% if f.n_lecturas > 0 %}<tr><td class="mono">{{ '%02d'|format(f.hora) }}:00</td><td class="num">{{ f.media_hr }}</td><td class="num">{{ f.min_hr }}</td><td class="num">{{ f.max_hr }}</td><td class="num">{{ f.n_lecturas }}</td></tr>{% endif %}{% endfor %}
+        </tbody></table></div></div>
+      {% else %}<div class="empty"><div class="empty-text">Sin lecturas de pulso</div></div>{% endif %}
+    </div>
+
+    <!-- ══════════ MARCHA ══════════ -->
+    <div id="tab-marcha" class="tab">
+      <div class="page-title">Marcha y braceo</div>
+      <div class="page-sub">Solo se analizan los tramos detectados como marcha (≥ 15 s de movimiento periódico a 1,2–2,4 Hz)</div>
+      {% if mar.disponible %}
+      <div class="grid-3">
+        <div class="metric-box"><div class="metric-box-label">Tiempo caminando</div><div class="metric-box-value">{{ mar.minutos_marcha }}<span class="metric-box-unit">min</span></div>
+          <div class="metric-box-desc">{{ mar.n_tramos }} tramos · el más largo {{ mar.tramo_mas_largo_min }} min{% if mar.minutos_carrera %} · {{ mar.minutos_carrera }} min de carrera (excluida){% endif %}</div></div>
+        <div class="metric-box"><div class="metric-box-label">Cadencia</div><div class="metric-box-value">{{ mar.cadencia_ppm }}<span class="metric-box-unit">pasos/min</span></div>
+          <div class="metric-box-desc">{% if ref.cadencia_ppm %}referencia personal {{ ref.cadencia_ppm }}{% else %}sin referencia previa{% endif %}</div></div>
+        <div class="metric-box"><div class="metric-box-label">Intensidad del braceo</div><div class="metric-box-value">{{ mar.braceo_rms_g }}<span class="metric-box-unit">g RMS</span></div>
+          <div class="metric-box-desc">{% if ref.braceo_rms_g %}{{ (mar.braceo_rms_g / ref.braceo_rms_g * 100)|round|int }}% de su referencia ({{ ref.braceo_rms_g }} g){% else %}sin referencia previa{% endif %}</div></div>
+      </div>
+      <div class="grid-3">
+        <div class="metric-box"><div class="metric-box-label">Variabilidad del ritmo</div><div class="metric-box-value">{{ mar.cv_cadencia_pct if mar.cv_cadencia_pct is not none else '—' }}<span class="metric-box-unit">% CV</span></div>
+          <div class="metric-box-desc">CV de la cadencia dentro de cada tramo{% if ref.cv_cadencia_pct %} · referencia {{ ref.cv_cadencia_pct }}%{% endif %}</div></div>
+        <div class="metric-box"><div class="metric-box-label">Periodicidad</div><div class="metric-box-value">{{ mar.periodicidad }}</div>
+          <div class="metric-box-desc">Fracción de potencia en la frecuencia de paso (0–1)</div></div>
+        <div class="metric-box"><div class="metric-box-label">Interrupciones breves</div><div class="metric-box-value">{{ mar.n_paradas_breves }}</div>
+          <div class="metric-box-desc">{{ mar.paradas_por_hora_marcha }} por hora de marcha · candidatas a bloqueo, no confirmadas</div></div>
+      </div>
+      {% if mar.paradas %}
+      <div class="card"><div class="card-header"><div class="card-title">Interrupciones breves de la marcha (5–10 s de quietud entre dos tramos ≥ 20 s)</div></div>
+        <div class="tabla-wrap"><table><thead><tr><th>Hora</th><th>Duración</th></tr></thead><tbody>
+        {% for p in mar.paradas %}<tr><td class="mono">{{ p.hora }}</td><td class="num">{{ p.duracion_s }} s</td></tr>{% endfor %}
+        </tbody></table></div></div>
+      {% endif %}
+      <div class="info-box">Desde la muñeca no se puede medir la asimetría entre ambos lados ni distinguir un bloqueo de una parada voluntaria.
+        Los pasos se estiman como frecuencia de paso × duración de cada ventana de marcha; el contador del reloj se muestra solo como comparación.</div>
+      {% else %}<div class="empty"><div class="empty-text">{{ mar.motivo }}</div></div>{% endif %}
+    </div>
+
+    <!-- ══════════ CAÍDAS ══════════ -->
+    <div id="tab-caidas" class="tab">
+      <div class="page-title">Caídas</div>
+      <div class="page-sub">Pico &gt; {{ umbral_caida }} g + reposo en los 2 s siguientes + calma en el segundo anterior</div>
+      <div class="card">
+        {% if cai.n_caidas > 0 %}
+          {% for ev in cai.eventos %}
+          <div class="caida-item"><div class="caida-icon">⚠️</div><div><div class="caida-hora">{{ ev.hora }}</div><div class="caida-mag">Pico de {{ ev.magnitud_pico }} g</div></div></div>
+          {% endfor %}
+        {% else %}<div class="empty"><div class="empty-icon">✅</div><div class="empty-text">Sin caídas detectadas este día</div></div>{% endif %}
+      </div>
+      <div class="info-box">Con ~23 Hz de muestreo un impacto corto puede quedar entre dos muestras y el pico medido ser menor que el real.</div>
+    </div>
+
+    <!-- ══════════ SUEÑO ══════════ -->
+    <div id="tab-sueno" class="tab">
+      <div class="page-title">Sueño</div>
+      <div class="page-sub">Noche = {{ hora_inicio }}:00 del día anterior a {{ hora_fin }}:00 · el periodo de sueño se detecta por actigrafía (épocas de 30 s)</div>
+      {% if noches %}
+      <div class="sueno-grid">
+        {% for n in noches %}
+        <div class="sueno-card">
+          <div class="sueno-fecha">Noche que termina el {{ n.fecha }}</div>
+          {% if n.puntuacion_sueno is not none %}
+            <div class="sueno-score {{ n.nivel_sueno|lower }}">{{ n.puntuacion_sueno }}<span style="font-size:16px;color:var(--muted)">/100</span></div>
+            <div style="margin:8px 0"><span class="badge {{ n.nivel_sueno|lower }}">{{ n.nivel_sueno }}</span></div>
+            <div class="sueno-rows">
+              <div class="sueno-row"><span class="sueno-key">Duración</span><span class="sueno-val">{{ n.horas_sueno }} h</span></div>
+              <div class="sueno-row"><span class="sueno-key">FC en sueño</span><span class="sueno-val">{{ n.hr_nocturna }} bpm</span></div>
+              <div><div class="sueno-row" style="margin-bottom:3px;"><span class="sueno-key">Picos de FC</span><span class="sueno-val">{{ n.fragmentacion }}%</span></div>
+                <div class="mini-bar-wrap"><div class="mini-bar-bg"><div class="mini-bar-fill" style="width:{{ n.fragmentacion }}%;background:var(--amber)"></div></div></div></div>
+              <div><div class="sueno-row" style="margin-bottom:3px;"><span class="sueno-key">Épocas con movimiento</span><span class="sueno-val">{{ n.movimiento }}%</span></div>
+                <div class="mini-bar-wrap"><div class="mini-bar-bg"><div class="mini-bar-fill" style="width:{{ n.movimiento }}%;background:var(--blue)"></div></div></div></div>
+            </div>
+          {% else %}<div class="sueno-score" style="color:var(--light)">—</div><div style="font-size:11px;color:var(--muted);margin-top:8px;">Datos nocturnos insuficientes</div>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% if sue.disponible %}
+      <div class="card"><div class="card-header"><div class="card-title">Detalle de la noche que termina el {{ fecha }}</div></div>
+        <div class="card-body"><div class="sueno-rows">
+          <div class="sueno-row"><span class="sueno-key">Periodo de sueño</span><span class="sueno-val">{{ sue.inicio }} – {{ sue.fin }}</span></div>
+          <div class="sueno-row"><span class="sueno-key">Despertares (≥ 1,5 min de movimiento)</span><span class="sueno-val">{{ sue.despertares }}</span></div>
+          <div class="sueno-row"><span class="sueno-key">Horas sin el reloj puesto</span><span class="sueno-val">{{ sue.horas_no_puesto }} h</span></div>
+          <div class="sueno-row"><span class="sueno-key">Cobertura de la franja nocturna</span><span class="sueno-val">{{ sue.cobertura_pct }}%</span></div>
+        </div></div></div>
+      {% endif %}
+    </div>
+
+    <!-- ══════════ HISTORIAL ══════════ -->
+    <div id="tab-historial" class="tab">
+      <div class="page-title">Historial</div>
+      <div class="page-sub">{{ resumenes|length }} días · pulsa una fecha para verla</div>
+      <div class="card"><div class="tabla-wrap"><table>
+        <thead><tr><th>Fecha</th><th>Horas</th><th>Temblor</th><th>Episodios</th><th>Marcha</th><th>Cadencia</th><th>Braceo</th><th>CV ritmo</th><th>Interrup.</th><th>Pasos</th><th>Pasos reloj</th><th>Caídas</th><th>FC media</th><th>Sueño</th></tr></thead>
+        <tbody>{% for s in resumenes %}<tr>
+          <td class="mono"><a href="/?fecha={{ s.fecha }}" style="color:var(--blue)">{{ s.fecha }}</a></td>
+          <td class="num">{{ s.horas_registradas }}</td>
+          <td class="num">{{ s.minutos_temblor if s.minutos_temblor is not none else '—' }} min</td>
+          <td class="num">{{ s.n_episodios_temblor if s.n_episodios_temblor is not none else '—' }}</td>
+          <td class="num">{{ s.minutos_marcha if s.minutos_marcha is not none else '—' }} min</td>
+          <td class="num">{{ s.cadencia_ppm if s.cadencia_ppm is not none else '—' }}</td>
+          <td class="num">{{ s.braceo_rms_g if s.braceo_rms_g is not none else '—' }}</td>
+          <td class="num">{{ s.cv_cadencia_pct if s.cv_cadencia_pct is not none else '—' }}</td>
+          <td class="num">{{ s.n_paradas_breves if s.n_paradas_breves is not none else '—' }}</td>
+          <td class="num">{{ s.pasos }}</td><td class="num">{{ s.pasos_firmware }}</td>
+          <td><span class="badge {{ 'alto' if s.n_caidas > 0 else 'bajo' }}">{{ s.n_caidas }}</span></td>
+          <td class="num">{{ s.media_hr if s.media_hr is not none else '—' }}</td>
+          <td>{% if s.puntuacion_sueno is not none %}<span class="badge {{ s.nivel_sueno|lower }}">{{ s.puntuacion_sueno }}</span>{% else %}<span class="badge nd">—</span>{% endif %}</td>
+        </tr>{% endfor %}</tbody>
+      </table></div></div>
+    </div>
+
+    <!-- ══════════ TENDENCIAS ══════════ -->
+    <div id="tab-tendencias" class="tab">
+      <div class="page-title">Tendencias</div>
+      <div class="page-sub" style="display:flex;align-items:center;gap:10px;">
+        <button id="btn-semanal" onclick="cargarTendencias('semanal')" class="btn-sec">Última semana</button>
+        <button id="btn-mensual" onclick="cargarTendencias('mensual')" class="btn-sec">Último mes</button>
+        <span id="tend-estado"></span>
+      </div>
+      <div class="grid-2">
+        <div class="card"><div class="card-header"><div class="card-title">〰️ Minutos con temblor</div></div><div class="card-body"><canvas id="chart-temblor" height="140"></canvas></div></div>
+        <div class="card"><div class="card-header"><div class="card-title">❤️ FC media (bpm)</div></div><div class="card-body"><canvas id="chart-pulso" height="140"></canvas></div></div>
+      </div>
+      <div class="grid-2">
+        <div class="card"><div class="card-header"><div class="card-title">💪 Intensidad del braceo (g RMS)</div></div><div class="card-body"><canvas id="chart-braceo" height="140"></canvas></div></div>
+        <div class="card"><div class="card-header"><div class="card-title">🌙 Sueño (/100)</div></div><div class="card-body"><canvas id="chart-sueno" height="140"></canvas></div></div>
+      </div>
+      <div class="grid-2">
+        <div class="card"><div class="card-header"><div class="card-title">🚶 Minutos de marcha</div></div><div class="card-body"><canvas id="chart-marcha" height="140"></canvas></div></div>
+        <div class="card"><div class="card-header"><div class="card-title">🔄 Variabilidad del ritmo (% CV)</div></div><div class="card-body"><canvas id="chart-cv" height="140"></canvas></div></div>
+      </div>
+      <div class="grid-2">
+        <div class="card"><div class="card-header"><div class="card-title">👣 Pasos: algoritmo propio vs reloj</div></div><div class="card-body"><canvas id="chart-pasos" height="140"></canvas></div></div>
+        <div class="card"><div class="card-header"><div class="card-title">⚠️ Caídas</div></div><div class="card-body"><canvas id="chart-caidas" height="140"></canvas></div></div>
+      </div>
+    </div>
+
+  {% endif %}
+    <div class="footer-bar">
+      <span>TFG · Ingeniería Biomédica · Sistema wearable Parkinson</span>
+      <span>Umbral caída: {{ umbral_caida }} g · Noche: {{ hora_inicio }}h–{{ hora_fin }}h</span>
+    </div>
+  </main>
+</div>
+
+<style>
+  .btn-sec { padding:6px 14px;border-radius:8px;border:1px solid var(--border);background:var(--white);color:var(--muted);font-size:12px;cursor:pointer; }
+  .btn-sec.activo { border-color:var(--blue);background:var(--blue-bg);color:var(--blue); }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+<script>
+function showTab(name, btn) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  btn.classList.add('active');
+  if (name === 'tendencias' && !window._tend) { cargarTendencias('semanal'); window._tend = true; }
+}
+
+const COLORES = {
+  rojo:{borde:'#dc2626',fondo:'rgba(220,38,38,0.12)'}, verde:{borde:'#059669',fondo:'rgba(5,150,105,0.12)'},
+  azul:{borde:'#2563eb',fondo:'rgba(37,99,235,0.12)'}, ambar:{borde:'#d97706',fondo:'rgba(217,119,6,0.12)'},
+  purpura:{borde:'#7c3aed',fondo:'rgba(124,58,237,0.12)'}, gris:{borde:'#6b7280',fondo:'rgba(107,114,128,0.12)'},
+};
+(function(){ const p=[window.ChartZoom, window['chartjs-plugin-zoom'], window.zoomPlugin].find(x=>x); if (p && window.Chart) Chart.register(p); })();
+
+const EJES = { x:{grid:{color:'#e4e7ed'},ticks:{font:{size:10},color:'#9ca3af',maxTicksLimit:24,autoSkip:true}},
+               y:{grid:{color:'#e4e7ed'},ticks:{font:{size:10},color:'#9ca3af'}} };
+const ZOOM = { pan:{enabled:true,mode:'x'}, zoom:{wheel:{enabled:true},pinch:{enabled:true},mode:'x'} };
+const charts = {};
+function resetZoom(k){ if (charts[k] && charts[k].resetZoom) charts[k].resetZoom(); }
+
+function crearGrafica(id, labels, datasets, tipo='line') {
+  const ctx = document.getElementById(id); if (!ctx) return;
+  if (ctx._c) ctx._c.destroy();
+  ctx._c = new Chart(ctx, { type:tipo, data:{labels, datasets: datasets.map(d => ({
+      label:d.label, data:d.data, borderColor:d.color.borde, backgroundColor:d.color.fondo,
+      borderWidth:2, pointRadius:3, fill:datasets.length===1, tension:0.3, spanGaps:true }))},
+    options:{ responsive:true, plugins:{legend:{display:datasets.length>1}}, scales:EJES } });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  {% if fecha %}
+  // Temblor: máximo por minuto
+  const tEt = {{ (t.serie_minuto_t if t.disponible else []) | tojson }};
+  const tVal = {{ (t.serie_minuto_ratio if t.disponible else []) | tojson }};
+  const umbral = {{ ((t.umbral_ratio if t.disponible else 0.5) * 100) | tojson }};
+  const cT = document.getElementById('chart-temblor-detalle');
+  if (cT && tVal.length) {
+    charts.temblor = new Chart(cT, { type:'bar', data:{ labels:tEt, datasets:[{ data:tVal,
+        backgroundColor: tVal.map(v => v >= umbral ? COLORES.rojo.borde : 'rgba(37,99,235,0.35)') }]},
+      options:{ responsive:true, animation:false, plugins:{ legend:{display:false}, zoom:ZOOM,
+        tooltip:{callbacks:{label:i => `${i.parsed.y}% potencia en banda` + (i.parsed.y >= umbral ? ' · TEMBLOR' : '')}} },
+        scales:{ x:EJES.x, y:{...EJES.y, min:0, max:100} } } });
+  }
+  // Pulso por minuto
+  const pm = {{ (m.pulso_por_minuto if m else []) | tojson }};
+  const cP = document.getElementById('chart-pulso-horas');
+  if (cP && pm.length) {
+    charts.pulso = new Chart(cP, { type:'line', data:{ labels:pm.map(d=>d.etiqueta), datasets:[{ data:pm.map(d=>d.media_hr),
+        borderColor:COLORES.rojo.borde, backgroundColor:COLORES.rojo.fondo, borderWidth:1.5, pointRadius:0, fill:true, tension:0.2, spanGaps:false }]},
+      options:{ responsive:true, animation:false, plugins:{legend:{display:false}, zoom:ZOOM}, scales:EJES } });
+  }
+  {% endif %}
+});
+
+async function cargarTendencias(periodo) {
+  document.getElementById('btn-semanal').classList.toggle('activo', periodo==='semanal');
+  document.getElementById('btn-mensual').classList.toggle('activo', periodo==='mensual');
+  const est = document.getElementById('tend-estado'); est.textContent = 'Cargando...';
+  try {
+    const datos = (await (await fetch(`/tendencias/${periodo}`)).json()).datos;
+    if (!datos || !datos.length) { est.textContent = 'Sin datos'; return; }
+    const et = datos.map(d => { const p = d.fecha.split('-'); return `${p[2]}/${p[1]}`; });
+    const v = c => datos.map(d => d[c] ?? null);
+    crearGrafica('chart-temblor', et, [{label:'min', data:v('minutos_temblor'), color:COLORES.rojo}]);
+    crearGrafica('chart-pulso',   et, [{label:'bpm', data:v('media_hr'), color:COLORES.rojo}]);
+    crearGrafica('chart-braceo',  et, [{label:'g RMS', data:v('braceo_rms_g'), color:COLORES.azul}]);
+    crearGrafica('chart-sueno',   et, [{label:'/100', data:v('puntuacion_sueno'), color:COLORES.purpura}]);
+    crearGrafica('chart-marcha',  et, [{label:'min', data:v('minutos_marcha'), color:COLORES.verde}]);
+    crearGrafica('chart-cv',      et, [{label:'% CV', data:v('cv_cadencia_pct'), color:COLORES.ambar}]);
+    crearGrafica('chart-pasos',   et, [{label:'Algoritmo propio', data:v('pasos'), color:COLORES.verde},
+                                       {label:'Reloj', data:v('pasos_firmware'), color:COLORES.gris}], 'bar');
+    crearGrafica('chart-caidas',  et, [{label:'caídas', data:v('n_caidas'), color:COLORES.ambar}], 'bar');
+    est.textContent = `${datos.length} días`;
+  } catch (e) { est.textContent = 'Error cargando datos'; console.error(e); }
+}
+</script>
+</body>
+</html>
