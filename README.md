@@ -20,7 +20,7 @@ TFG-Proyecto/
 │
 └── README.md
 
-Tecnologías utilizadas
+Tecnologías utilizadas:
 
 Python
 
@@ -30,30 +30,10 @@ Android Studio
 
 GitHub
 
-Datos utilizados
+Datos utilizados:
 
 Debido al volumen de los datos utilizados en el proyecto, estos se encuentran alojados externamente en Google Drive.
 
 Enlace de acceso a los datos: [Acceder a los datos del TFG](https://drive.google.com/file/d/1YarKh5OhRh0BvuXzlD7XJsLVMWvR1efd/view?usp=sharing)
 
-Acceder a los datos del proyecto
 
-Instalación y ejecución
-
-Python
-
-Descargar o clonar este repositorio.
-
-Instalar las dependencias necesarias.
-
-Ejecutar los scripts correspondientes.
-
-Android
-
-Abrir Android Studio.
-
-Seleccionar la carpeta del proyecto Android.
-
-Esperar a que se complete la sincronización de Gradle.
-
-Ejecutar la aplicación en un dispositivo o emulador compatible.
